@@ -39,10 +39,18 @@ const mimeTypes = {
   ".pdf": "application/pdf",
 };
 
+function readOptionalText(fileName) {
+  try {
+    return readFileSync(join(root, fileName), "utf8").trim();
+  } catch {
+    return "";
+  }
+}
+
 const portfolioContext = `
 김기범은 Jr. Product Owner / Service Planner 후보입니다.
 핵심 포지셔닝: AI 도구로 직접 제품을 만들고 배포하며, 복잡한 업무와 데이터를 사용자가 판단할 수 있는 Admin/Dashboard와 서비스 구조로 바꾸는 Jr. PO.
-AI Native 역량: Codex와 Claude Code를 실행 환경처럼 활용하고, PRD 기반 harness engineering으로 요구사항, 테스트, 화면, 데이터 흐름을 연결한다. Agent Native 문서 작성 능력이 있으며 국문과 문예창작/비평 전공의 문장 감각을 구조화 문서와 지시문에 활용한다. LLM Wiki와 Hermes Agent를 활용하고 Self-Improving Agent처럼 본인의 작업 방식도 계속 개선한다.
+도구 활용 역량: 요구사항, 테스트, 화면, 데이터 흐름을 PRD와 QA 기준으로 연결하고, 자동화 도구를 실행 환경처럼 활용한다. 국문과 문예창작/비평 전공의 문장 감각을 구조화 문서와 지시문에 활용하며, 결정 이유와 실패 로그를 다음 작업의 맥락으로 남긴다.
 
 데블록: 2025.04-2026.05 서비스 기획자/PM.
 ireh link: 2025.05-2026.04 외국인 의료관광 B2B 운영 시스템. 레퍼런스가 거의 없는 러프한 요구사항을 바탕으로 레퍼런스 수집, PRD, IA, 화면설계서, Figma 일부 디자인, QA 시트, 개발 매니징을 담당. 웹/앱/Admin 구조. 예약/매칭, 매출분석, 차트관리, 상품판매, 인센티브 정산, 데이터 대시보드, 웹빌더 기능. Jira, WBS 기반으로 클라이언트 요구사항, 개발 구현 범위, 일정 우선순위를 조율. 엑셀/수기 중심으로 분산되어 있던 예약·정산·매출 흐름을 운영자 중심 Admin 구조로 정리해 업무 표준화와 운영 효율 개선에 기여. 데이터 마이그레이션 과정에서 클라이언트 제공 매출 데이터 오류를 발견.
@@ -57,6 +65,11 @@ Dimetric: LLM 기반 Text to CAD, 3D프린터 도안 생성 프로젝트. 단독
 자투리: 2023.01-2024.09. 메인 기획자 겸 PM. 인테리어 폐자재 거래/배송 서비스. 81개 업체 방문 설문, IA/플로우차트/정책문서, Figma 앱 디자인, 외주 개발 커뮤니케이션, Android MVP 배포, 80여 개 업체 PoC, 2023년 4분기 매출 1,057만 원, 거래건수 30.4%p 증가, 배송 서비스 이용률 11.3%p 증가, 에코스타트업 4,628만 원, 청년창업사관학교 6,000만 원.
 테이스팃: 2024.01-2025.01. 팀 대표. 수입주류 취향/리뷰 데이터 기반 큐레이션 서비스. 700명 설문, 자영업자 6명 인터뷰, 800명 설문, 20명 심층 인터뷰, 600여 명 MVP 테스트, 구매 의향 82%, 제휴 검토 7개 업체, 확정 3개 업체, 예비창업패키지 서류 합격, 제2회 대한민국 대학 창업대전 한남대 대표팀 참가.
 `.trim();
+
+const interviewQaContext = readOptionalText("채용담당자_QA_지식베이스.md");
+const knowledgeContext = [portfolioContext, interviewQaContext].filter(Boolean).join("\n\n");
+const unknownAnswer =
+  "이 부분은 Poppy가 확인한 자료만으로는 정확히 답하기 어렵습니다. 면접에서 기범님께 직접 질문해주시면 더 정확히 답변드릴 수 있습니다.";
 
 function offlineAnswer(question) {
   const q = question.replace(/\s+/g, " ");
@@ -79,9 +92,9 @@ function offlineAnswer(question) {
     return "스드맵은 웨딩홀/스드메 정보와 리뷰를 비교하는 서비스입니다. 업체 정보/리뷰 관리 Admin과 사용자 검색/비교 UX를 분리해 설계했습니다. 서비스 주소는 https://www.sdmaps.com/ 입니다.";
   }
   if (/인터엑스|fit|적합|왜/i.test(q)) {
-    return "인터엑스 Jr. PO와의 연결점은 AI Native 실행력, B2B/Admin 기획, 복잡한 데이터와 제품 로직 구조화입니다. Dimetric의 AI/CAD 검증 흐름, ireh link의 Admin 구조화, StockStalker의 데이터 제품 경험이 제조 AI Solution PO 역할과 이어집니다.";
+    return "인터엑스 Jr. PO와의 연결점은 빠른 실행력, B2B/Admin 기획, 복잡한 데이터와 제품 로직 구조화입니다. Dimetric의 모델 응답 검증 흐름, ireh link의 Admin 구조화, StockStalker의 데이터 제품 경험이 제조 AI Solution PO 역할과 이어집니다.";
   }
-  return "김기범은 데블록에서 ireh link와 sippn의 기획/PM을 맡았고, 퇴사 후 Dimetric, StockStalker, 사주중독 등을 단독 제작했습니다. 강점은 AI 도구를 활용한 빠른 실행, B2B/Admin 구조화, 복잡한 데이터와 운영 프로세스의 제품화입니다.";
+  return unknownAnswer;
 }
 
 async function readJson(request) {
@@ -121,8 +134,10 @@ async function handleChat(request, response) {
       body: JSON.stringify({
         model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
         instructions:
-          "너는 김기범의 포트폴리오 안내 챗봇이다. 아래 컨텍스트만 근거로 한국어로 간결하게 답한다. 모르는 내용은 추측하지 말고 확인이 필요하다고 말한다. 프로젝트명은 반드시 Dimetric, ireh link, sippn, StockStalker, SajuHook 표기를 사용하고 아이레 링크, 이레링크, sippen처럼 바꿔 쓰지 않는다.\n\n" +
-          portfolioContext,
+          "너는 김기범 본인이 아니라, 김기범을 대신해 포트폴리오와 면접용 자료를 설명하는 채용 안내 챗봇 Poppy다. 한국어로 정중하고 간결하게 답한다. 답변은 아래 컨텍스트에 있는 근거만 사용한다. 원문이 1인칭이어도 Poppy는 3인칭으로 자연스럽게 정리한다. 모르는 내용, 김기범이 아직 답하지 않은 내용, 공개 가능성이 불명확한 내용은 추측하지 말고 이렇게 답한다: " +
+          unknownAnswer +
+          " 프로젝트명은 반드시 Dimetric, ireh link, sippn, StockStalker, SajuHook 표기를 사용하고 아이레 링크, 이레링크, sippen처럼 바꿔 쓰지 않는다.\n\n" +
+          knowledgeContext,
         input: messages.slice(-8).map((message) => ({
           role: message.role === "assistant" ? "assistant" : "user",
           content: [{ type: "input_text", text: String(message.content || "") }],
@@ -138,7 +153,14 @@ async function handleChat(request, response) {
       response.end(JSON.stringify({ mode: "api", answer: extractText(data) || offlineAnswer(lastMessage) }));
       return;
     }
-  } catch {
+    console.warn("OpenAI API fallback", {
+      status: apiResponse.status,
+      type: data.error?.type,
+      code: data.error?.code,
+      message: data.error?.message,
+    });
+  } catch (error) {
+    console.warn("OpenAI API fallback", { message: error.message });
     // API 장애, 모델 capacity, 네트워크 실패는 로컬 답변으로 우회한다.
   }
 
