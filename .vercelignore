@@ -1,0 +1,16 @@
+.DS_Store
+.env
+.env.*
+.env.example
+.git
+.obsidian
+.playwright-cli
+test-results
+tmp
+*.zip
+*.pdf
+server.mjs
+test-poppy.mjs
+개발용_*
+참고용_*
+제출용_*

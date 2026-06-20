@@ -311,42 +311,8 @@ function setupPointerEffects() {
   });
 }
 
-function localFallback(question) {
-  const q = question.replace(/\s+/g, " ").trim();
-
-  if (/디메트릭|dimetric|cad|3d|프린터|프린팅/i.test(q)) {
-    return "Dimetric은 자연어 요청을 수정 가능한 파라메트릭 수치로 해석해 CAD에 반영하는 단독 기획·개발 프로젝트입니다. 많은 학생과 예비창업자가 3D 프린터를 더 쉽게 쓸 수 있도록, Graph Patch → CAD Compile → Snapshot 검증을 거치게 해 실패한 변경이 원본을 망가뜨리지 않도록 설계했습니다.";
-  }
-
-  if (/이레|ireh|어드민|admin|운영/i.test(q)) {
-    return "Ireh Link에서는 의료관광 외국인, 통역사, 병원, 관리자가 각각 다른 표면에서 움직이는 복잡한 운영을 웹·앱·Admin 구조로 엮었습니다. PRD, IA, 화면설계서, 일부 Figma 디자인, QA, 개발 매니징을 담당했고 월 매출 8억 규모 업체에 납품됐습니다.";
-  }
-
-  if (/스톡|stock|주식|데이터/i.test(q)) {
-    return "StockStalker는 국내·미국 주식 데이터를 수집·캐싱·스코어링해 비교 가능한 판단 화면으로 만든 단독 제품입니다. 출시 첫 주 약 1,000명이 방문해 12,000건의 종목 조회를 만들었고, 사용자 피드백을 반영해 SEC·DART 공시와 룰베이스 요약을 추가했습니다.";
-  }
-
-  if (/sippn|시픈|테이스팃|taste/i.test(q)) {
-    return "sippn은 대학 창업 프로젝트 테이스팃에서 검증한 취향·리뷰 기반 큐레이션 아이디어를 회사 내부 신규 프로젝트로 제안해 발전시킨 사례입니다. 테이스팃에서는 700~800명 설문, 20명 심층 인터뷰, 600여 명 MVP 테스트, 구매 의향 82%, 제휴 검토 7곳·확정 3곳을 직접 검증했습니다.";
-  }
-
-  if (/자투리|zaturi|jaturi|창업|매출|poc/i.test(q)) {
-    return "자투리에서는 81개 업체 방문 설문, Android MVP 배포, 80여 개 업체 PoC를 진행했습니다. 2023년 4분기 매출 1,057만 원, 거래 건수 30.4%p 증가, 배송 서비스 이용률 11.3%p 증가를 기록했고 정부지원 1억 628만 원을 확보했습니다.";
-  }
-
-  if (/인터엑스|interx|적합|fit|왜/i.test(q)) {
-    return "INTERX 역할과 연결되는 핵심은 세 가지입니다. Dimetric에서 모델 응답의 검증·복구 흐름을 설계한 경험, ireh link에서 수기 운영을 Admin과 Dashboard로 전환한 경험, StockStalker에서 분산 데이터를 사용자의 판단 화면으로 만든 경험입니다. 제조 도메인은 새로 배우되, 배운 내용을 요구사항·데이터 흐름·QA 기준으로 빠르게 고정할 수 있습니다.";
-  }
-
-  if (/수치|성과|숫자|요약/i.test(q)) {
-    return "대표 수치는 StockStalker 출시 첫 주 1,000명 방문·12,000건 조회, 자투리 2023년 4분기 매출 1,057만 원·거래 건수 30.4%p 증가, 테이스팃 700~800명 설문·20명 인터뷰·600여 명 MVP 테스트·구매 의향 82%입니다.";
-  }
-
-  if (/에이아이|ai|자동화|도구/i.test(q)) {
-    return "김기범은 OpenAI Codex, Claude Code, Obsidian, LLM Wiki, Hermes Agent, OpenClaw를 하나의 작업 루프로 엮어 씁니다. 요구와 근거는 Obsidian·LLM Wiki에 남기고, Codex·Claude Code로 구현과 검토를 돌린 뒤, OpenClaw·Hermes로 반복 작업을 쪼갭니다.";
-  }
-
-  return "이 부분은 Poppy가 확인한 자료만으로는 정확히 답하기 어렵습니다. 면접에서 기범님께 직접 질문해주시면 더 정확히 답변드릴 수 있습니다.";
+function apiUnavailableMessage() {
+  return "Poppy API 연결에 문제가 있어 지금은 답변을 생성하지 못했습니다. 서버를 다시 시작한 뒤 다시 질문해주세요.";
 }
 
 function setupChat() {
@@ -428,15 +394,15 @@ function setupChat() {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       answer = String(data.answer || "").trim();
-      setStatus(data.mode === "api" ? "Poppy API connected" : "Poppy ready");
+      setStatus(data.mode === "api" ? "Poppy API connected" : "Poppy API unavailable");
     } catch {
-      answer = localFallback(clean);
-      setStatus("Poppy ready");
+      answer = apiUnavailableMessage();
+      setStatus("Poppy API unavailable");
     }
 
     typing.remove();
-    appendMessage("assistant", answer || localFallback(clean));
-    messages.push({ role: "assistant", content: answer || localFallback(clean) });
+    appendMessage("assistant", answer || apiUnavailableMessage());
+    messages.push({ role: "assistant", content: answer || apiUnavailableMessage() });
     busy = false;
     if (submitButton) submitButton.disabled = false;
     input.focus();
