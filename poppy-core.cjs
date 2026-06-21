@@ -48,6 +48,9 @@ const poppyInstructions = [
   "연봉처럼 공개 자료에 없는 보상 질문에는 '공개 자료에는 확인되지 않습니다'라고 선을 긋고, 확인 가능한 역할/경험 요약까지만 답한다.",
   "개인정보와 보상 질문에서는 나이, 재학 여부, 졸업 여부, 졸업 예정 여부, 희망 연봉, 협상 가능성 같은 값을 추정하지 않는다.",
   "금지 표현: '대학 재학 또는 졸업 후', '초기 경력 단계임을 알 수 있습니다', '연봉 협의가 가능합니다', '적절한 연봉 협상이 가능합니다'.",
+  "복합 질문은 답변 가능/불명확/면접 질문 권장 항목을 분리한다. 요청한 항목이 여러 개면 자료가 있는 항목은 먼저 답하고, 없는 항목만 공개 자료에는 확인되지 않는다고 말한다.",
+  "답변은 첫 문장에서 결론을 말하고, 필요한 경우 근거 2-4개를 짧게 붙인다. HR이 빠르게 판단할 수 있게 프로젝트명, 역할, 수치, 검증 방식을 우선한다.",
+  "INTERX, 제조 AI, PO 적합성 질문에는 ireh link의 복잡한 운영/Admin 구조화, Dimetric의 검증 가능한 AI 루프, StockStalker의 데이터 판단 화면화 경험을 연결해 답한다.",
   "원문이 1인칭이어도 Poppy는 3인칭으로 자연스럽게 정리한다.",
   "프로젝트명은 반드시 Dimetric, ireh link, sippn, StockStalker, SajuHook 표기를 사용하고 아이레 링크, 이레링크, sippen처럼 바꿔 쓰지 않는다.",
 ].join("\n");
@@ -71,33 +74,49 @@ function isRetryableStatus(status) {
   return status === 408 || status === 429 || status >= 500;
 }
 
-async function answerWithPoppy(messages, apiKey, model = "gpt-4.1-mini") {
+function cleanMessages(messages) {
+  return (Array.isArray(messages) ? messages : [])
+    .map((message) => ({
+      role: message?.role === "assistant" ? "assistant" : "user",
+      content: String(message?.content || "").trim(),
+    }))
+    .filter((message) => message.content && message.content !== apiUnavailableAnswer)
+    .slice(-8);
+}
+
+function toOpenAIInput(message) {
+  return {
+    role: message.role,
+    content: [
+      {
+        type: message.role === "assistant" ? "output_text" : "input_text",
+        text: message.content,
+      },
+    ],
+  };
+}
+
+async function answerWithPoppy(messages, apiKey, model = "gpt-4.1-mini", options = {}) {
   if (!apiKey) return { mode: "api_unavailable", answer: apiUnavailableAnswer };
 
+  const cleanedMessages = cleanMessages(messages);
+  if (!cleanedMessages.length) return { mode: "api", answer: unknownAnswer };
+
+  const fetchImpl = options.fetch || fetch;
+  const sleepImpl = options.sleep || sleep;
   const interviewQaContext = readOptionalText("채용담당자_QA_지식베이스.md");
   const knowledgeContext = [portfolioContext, interviewQaContext].filter(Boolean).join("\n\n");
   const body = JSON.stringify({
     model,
     instructions: `${poppyInstructions}\n\n${knowledgeContext}`,
-    input: messages.slice(-8).map((message) => {
-      const role = message.role === "assistant" ? "assistant" : "user";
-      return {
-        role,
-        content: [
-          {
-            type: role === "assistant" ? "output_text" : "input_text",
-            text: String(message.content || ""),
-          },
-        ],
-      };
-    }),
+    input: cleanedMessages.map(toOpenAIInput),
     temperature: 0.3,
     max_output_tokens: 500,
   });
 
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
-      const apiResponse = await fetch("https://api.openai.com/v1/responses", {
+      const apiResponse = await fetchImpl("https://api.openai.com/v1/responses", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -124,10 +143,10 @@ async function answerWithPoppy(messages, apiKey, model = "gpt-4.1-mini") {
       if (attempt === 2) break;
     }
 
-    await sleep(700);
+    await sleepImpl(700);
   }
 
   return { mode: "api_unavailable", answer: apiUnavailableAnswer };
 }
 
-module.exports = { answerWithPoppy, apiUnavailableAnswer };
+module.exports = { answerWithPoppy, apiUnavailableAnswer, cleanMessages, toOpenAIInput };
