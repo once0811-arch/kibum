@@ -417,9 +417,12 @@ function setupChat() {
       setStatus("Poppy API unavailable");
     }
 
+    const finalAnswer = answer || apiUnavailableMessage();
     typing.remove();
-    appendMessage("assistant", answer || apiUnavailableMessage());
-    messages.push({ role: "assistant", content: answer || apiUnavailableMessage() });
+    appendMessage("assistant", finalAnswer);
+    if (finalAnswer !== apiUnavailableMessage()) {
+      messages.push({ role: "assistant", content: finalAnswer });
+    }
     busy = false;
     if (submitButton) submitButton.disabled = false;
     input.focus();

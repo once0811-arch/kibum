@@ -79,10 +79,18 @@ async function answerWithPoppy(messages, apiKey, model = "gpt-4.1-mini") {
   const body = JSON.stringify({
     model,
     instructions: `${poppyInstructions}\n\n${knowledgeContext}`,
-    input: messages.slice(-8).map((message) => ({
-      role: message.role === "assistant" ? "assistant" : "user",
-      content: [{ type: "input_text", text: String(message.content || "") }],
-    })),
+    input: messages.slice(-8).map((message) => {
+      const role = message.role === "assistant" ? "assistant" : "user";
+      return {
+        role,
+        content: [
+          {
+            type: role === "assistant" ? "output_text" : "input_text",
+            text: String(message.content || ""),
+          },
+        ],
+      };
+    }),
     temperature: 0.3,
     max_output_tokens: 500,
   });
