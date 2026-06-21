@@ -312,7 +312,21 @@ function setupPointerEffects() {
 }
 
 function apiUnavailableMessage() {
-  return "Poppy API 연결에 문제가 있어 지금은 답변을 생성하지 못했습니다. 서버를 다시 시작한 뒤 다시 질문해주세요.";
+  return "Poppy API 연결이 일시적으로 불안정해 답변을 생성하지 못했습니다. 잠시 후 다시 질문해주세요.";
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function requestPoppy(messages) {
+  const response = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages }),
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
 }
 
 function setupChat() {
@@ -386,13 +400,16 @@ function setupChat() {
 
     let answer = "";
     try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: messages.slice(-8) }),
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = await response.json();
+      let data = null;
+      for (let attempt = 1; attempt <= 2; attempt += 1) {
+        try {
+          data = await requestPoppy(messages.slice(-8));
+          if (data.mode === "api" || attempt === 2) break;
+        } catch (error) {
+          if (attempt === 2) throw error;
+        }
+        await sleep(700);
+      }
       answer = String(data.answer || "").trim();
       setStatus(data.mode === "api" ? "Poppy API connected" : "Poppy API unavailable");
     } catch {

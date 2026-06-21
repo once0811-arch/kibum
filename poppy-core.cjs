@@ -34,7 +34,7 @@ const unknownAnswer =
   "이 부분은 Poppy가 확인한 자료만으로는 정확히 답하기 어렵습니다. 면접에서 기범님께 직접 질문해주시면 더 정확히 답변드릴 수 있습니다.";
 
 const apiUnavailableAnswer =
-  "Poppy API 연결에 문제가 있어 지금은 답변을 생성하지 못했습니다. 서버를 다시 시작한 뒤 다시 질문해주세요.";
+  "Poppy API 연결이 일시적으로 불안정해 답변을 생성하지 못했습니다. 잠시 후 다시 질문해주세요.";
 
 const poppyInstructions = [
   "너는 김기범 본인이 아니라, 김기범을 대신해 포트폴리오와 면접용 자료를 설명하는 채용 안내 챗봇 Poppy다.",
@@ -63,41 +63,60 @@ function extractText(response) {
   return parts.join("\n").trim();
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableStatus(status) {
+  return status === 408 || status === 429 || status >= 500;
+}
+
 async function answerWithPoppy(messages, apiKey, model = "gpt-4.1-mini") {
   if (!apiKey) return { mode: "api_unavailable", answer: apiUnavailableAnswer };
 
-  try {
-    const interviewQaContext = readOptionalText("채용담당자_QA_지식베이스.md");
-    const knowledgeContext = [portfolioContext, interviewQaContext].filter(Boolean).join("\n\n");
-    const apiResponse = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        instructions: `${poppyInstructions}\n\n${knowledgeContext}`,
-        input: messages.slice(-8).map((message) => ({
-          role: message.role === "assistant" ? "assistant" : "user",
-          content: [{ type: "input_text", text: String(message.content || "") }],
-        })),
-        temperature: 0.3,
-        max_output_tokens: 500,
-      }),
-    });
+  const interviewQaContext = readOptionalText("채용담당자_QA_지식베이스.md");
+  const knowledgeContext = [portfolioContext, interviewQaContext].filter(Boolean).join("\n\n");
+  const body = JSON.stringify({
+    model,
+    instructions: `${poppyInstructions}\n\n${knowledgeContext}`,
+    input: messages.slice(-8).map((message) => ({
+      role: message.role === "assistant" ? "assistant" : "user",
+      content: [{ type: "input_text", text: String(message.content || "") }],
+    })),
+    temperature: 0.3,
+    max_output_tokens: 500,
+  });
 
-    const data = await apiResponse.json();
-    if (apiResponse.ok) return { mode: "api", answer: extractText(data) || unknownAnswer };
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      const apiResponse = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body,
+      });
 
-    console.warn("OpenAI API fallback", {
-      status: apiResponse.status,
-      type: data.error?.type,
-      code: data.error?.code,
-      message: data.error?.message,
-    });
-  } catch (error) {
-    console.warn("OpenAI API fallback", { message: error.message });
+      const data = await apiResponse.json().catch(() => ({}));
+      if (apiResponse.ok) return { mode: "api", answer: extractText(data) || unknownAnswer };
+
+      const retryable = isRetryableStatus(apiResponse.status);
+      console.warn("OpenAI API fallback", {
+        attempt,
+        retryable,
+        status: apiResponse.status,
+        type: data.error?.type,
+        code: data.error?.code,
+        message: data.error?.message,
+      });
+      if (!retryable || attempt === 2) break;
+    } catch (error) {
+      console.warn("OpenAI API fallback", { attempt, message: error.message });
+      if (attempt === 2) break;
+    }
+
+    await sleep(700);
   }
 
   return { mode: "api_unavailable", answer: apiUnavailableAnswer };
